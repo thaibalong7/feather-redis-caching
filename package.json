@@ -1,8 +1,8 @@
 {
-  "name": "feathers-redis-cache",
+  "name": "feathers-redis-caching",
   "description": "Redis cache for feathers service",
-  "version": "1.0.14",
-  "homepage": "git://github.com/sarkistlt/feathers-redis-cache",
+  "version": "1.0.0",
+  "homepage": "git://github.com/thaibalong7/feather-redis-caching",
   "main": "build/index.js",
   "keywords": [
     "feathers",
@@ -16,11 +16,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git://github.com/sarkistlt/feathers-redis-cache.git"
+    "url": "git://github.com/thaibalong7/feather-redis-caching"
   },
   "author": {
-    "name": "Sarkis Arutiunian",
-    "email": "sarkis.tlt@gmail.com"
+    "name": "Thai Ba Long",
+    "email": "thaibalong7@gmail.com"
   },
   "scripts": {
     "build": "rm -rf ./lib && NODE_ENV=production tsc",
