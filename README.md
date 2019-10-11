@@ -1,26 +1,21 @@
-<!-- [![License](https://img.shields.io/npm/l/feathers-redis-cache.svg)](https://www.npmjs.com/package/feathers-redis-cache) -->
+[![License](https://img.shields.io/npm/l/feathers-redis-cache.svg)](https://www.npmjs.com/package/feathers-redis-cache)
 <!-- [![NPM](https://img.shields.io/npm/v/feathers-redis-cache.svg)](https://www.npmjs.com/package/feathers-redis-cache) -->
 ..
-##### This repository is a fork of [feathers-hooks-rediscache](https://github.com/sarkistlt/feathers-redis-cache), with the following changes:
-- refactor and simplified API and source code (details bellow).
-- support of feathers pagination hook, when it's enabled or disabled per the same endpoint.
-- key always generated in before hook.
-- option to pass custom logger function to log errors.
-- option to pass custom `/cache` prefix for redis routs.
-- option to pass custom `cacheKey(hook)` function in before hook, to customize key generation.
-- implementing `.purge()` hook, so you can place in after create/patch/update/remove hooks to purge entire group and avoid having keys with corrupted values in the cache.
-- remove `hookCache` now to set custom expiration date you need to pass it as an option in after hook.
-- remove `redisCache` from config.
-- remove `parseNestedRoutes`, `removePathFromCacheKey`, `defaultDuration` (by default it will expire in 24hr), `immediateCacheKey` options.
+##### This repository is a fork of [feathers-redis-cache](https://github.com/sarkistlt/feathers-redis-cache), with the following changes:
+- allow configure multi redis server by the way customize params of each function.
+- option to pass custom `redisClient` in configure service Cache clean, to customize name of key of redis client for use.
+- option to pass custom `redisClient` in configure Redis Client, that name of key of redis client.
+- option to pass custom `redisConfig` in configure Redis Client, thay key of config Redis server.
+- option to pass custom `redisClient` in every hook, to specify redis client name to save cache.
 
-### Installation
+<!-- ### Installation
 
 ```
   yarn add feathers-redis-cache
 ```    
 ```
   npm install feathers-redis-cache
-```    
+```     -->
 
 ## Purpose
 The purpose of these hooks is to provide redis caching for APIs endpoints. Using redis is a very good option for clustering your API. As soon as a request is cached it is available to all the other nodes in the cluster, which is not true for usual in memory cache as each node has its own memory allocated. This means that each node has to cache all requests individually.
@@ -60,8 +55,14 @@ To configure the redis connection the feathers configuration system can be used.
   "host": "localhost",
   "port": 3030,
   "redis": {
-    "host": "my-redis-service.example.com",
-    "port": 1234
+      "default": {
+        "host": "my-redis-service.example.com",
+        "port": 6379
+      },
+      "local": {
+        "host": "127.0.0.1",
+        "port": 6379
+      }
   }
 }
 ```
@@ -72,9 +73,12 @@ More details and example use bellow
 
 * `hooks.before(options)` - retrieves the data from redis
 * `hooks.after(options)` - cache the data to redis
-* `hooks.purge()` - purge cache from redis
+* `hooks.purge(options)` - purge cache from redis
 
 #### options properties (all props are optional)
+
+##### redisClient: `string`
+Name of redis client that want to save cache. The default is `redisClient`. When hook is running, it find redis client that configure when with name is `redisClient` and save cache.
 
 ##### cacheKey(context: `feathers-context`): `string`
 In case if you want to use custom function to modify key name, you need to pass the same function in before and after hooks.
@@ -95,6 +99,7 @@ Available routes:
 ## Complete Example
 
 Here's an example of a Feathers server that uses `feathers-redis-cache`.
+Make sure that the client func and service have the same `redisClient` params
 
 ```js
 const feathers = require('feathers');
@@ -104,6 +109,9 @@ const bodyParser = require('body-parser');
 const errorHandler = require('feathers-errors/handler');
 const redisCache = require('feathers-redis-cache');
 
+const redisClient = 'redisClient';
+const redisConfig = 'default';
+
 // Initialize the application
 const app = feathers()
   .use(bodyParser.json())
@@ -112,10 +120,10 @@ const app = feathers()
   .configure(hooks())
   // errorLogger is function for logging errors
   // if not passed console.error will bbe used
-  .configure(redisCache.client({ errorLogger: logger.error }))
+  .configure(redisCache.client({ errorLogger: logger.error, redisConfig, redisClient }))
   // you can change cache path prefix by passing `pathPrefix` option
   // if not passed default prefix '/cache' will be used
-  .configure(redisCache.services({ pathPrefix: '/cache' }))
+  .configure(redisCache.services({ pathPrefix: '/cache' , redisClient}))
   .use(errorHandler());
 
 app.listen(3030);
@@ -129,12 +137,14 @@ Add hooks on the routes that need caching
 
 const redisCache = require('feathers-redis-cache');
 
+// name of redis client that you configure in app.js
+const redisClient = 'redisClient';
 
 module.exports = {
   before: {
     all: [],
-    find: [redisCache.before()],
-    get: [redisCache.before()],
+    find: [redisCache.before({ redisClient })],
+    get: [redisCache.before({ redisClient })],
     create: [],
     update: [],
     patch: [],
@@ -143,12 +153,12 @@ module.exports = {
 
   after: {
     all: [],
-    find: [redisCache.after({ expiration: 3600 * 24 * 7 })],
-    get: [redisCache.after({ expiration: 3600 * 24 * 7 })],
-    create: [redisCache.purge()],
-    update: [redisCache.purge()],
-    patch: [redisCache.purge()],
-    remove: [redisCache.purge()]
+    find: [redisCache.after({ expiration: 3600 * 24 * 7, redisClient })],
+    get: [redisCache.after({ expiration: 3600 * 24 * 7, redisClient })],
+    create: [redisCache.purge({ redisClient })],
+    update: [redisCache.purge({ redisClient })],
+    patch: [redisCache.purge({ redisClient })],
+    remove: [redisCache.purge({ redisClient })]
   },
 
   error: {
@@ -172,7 +182,7 @@ You can also disable redis-cache hooks and service by passing env. variable `DIS
 - option in after hook to set limit of keys per group
 ## License
 
-Copyright (c) 2018
+Copyright (c) 2019
 
 Licensed under the [MIT license](LICENSE).
 
