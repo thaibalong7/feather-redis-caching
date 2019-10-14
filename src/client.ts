@@ -34,13 +34,17 @@ export default (options: any = {}) => {
       };
       const client = redis.createClient(redisOptions);
 
-      app.set(redisClient, client);
-
       client.on('ready', () => {
         app.set(redisClient, client);
 
-        console.log(`${chalk.green('[redis]')} connected`);
+        console.log(`${chalk.green('[redis]')} connected '${redisClient}'`);
       });
+
+      client.on('error', () => {
+        app.set(redisClient, undefined);
+        console.log(`${chalk.red('[redis]')} connect error '${redisClient}'`);
+      });
+
     } catch (err) {
       errorLogger(err);
       app.set(redisClient, undefined);
