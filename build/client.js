@@ -35,7 +35,7 @@ exports.default = (function (options) {
         try {
             var redisOptions = __assign(__assign({}, configRedis), { retry_strategy: function () {
                     app.set(redisClient, undefined);
-                    console.log(chalk_1.default.yellow('[redis]') + " not connected");
+                    console.log(chalk_1.default.yellow('[redis]') + " not connected '" + redisClient + "'");
                     return retryInterval;
                 } });
             var client_1 = redis_1.default.createClient(redisOptions);

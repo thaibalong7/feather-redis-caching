@@ -13,7 +13,7 @@ export default (options: any = {}) => {
   const redisConfig = options.redisConfig || DEFAULT_REDIS_CONFIG;
 
   if (DISABLE_REDIS_CACHE) {
-    return () => {};
+    return () => { };
   }
 
   return function client() {
@@ -27,7 +27,7 @@ export default (options: any = {}) => {
         retry_strategy: () => {
           app.set(redisClient, undefined);
 
-          console.log(`${chalk.yellow('[redis]')} not connected`);
+          console.log(`${chalk.yellow('[redis]')} not connected '${redisClient}'`);
 
           return retryInterval;
         }

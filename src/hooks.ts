@@ -165,10 +165,11 @@ export default {
           const target = hook.path;
 
           if (!client) {
-            return {
-              message: 'Redis unavailable',
-              status: HTTP_SERVER_ERROR
-            };
+            // return {
+            //   message: 'Redis unavailable',
+            //   status: HTTP_SERVER_ERROR
+            // };
+            return resolve(hook);
           }
 
           client.lrange(`group-${target}`, 0, -1, (err, reply) => {

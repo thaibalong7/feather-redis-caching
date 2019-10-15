@@ -184,10 +184,7 @@ exports.default = {
                     var client = hook.app.get(redisClient);
                     var target = hook.path;
                     if (!client) {
-                        return {
-                            message: 'Redis unavailable',
-                            status: HTTP_SERVER_ERROR
-                        };
+                        return resolve(hook);
                     }
                     client.lrange("group-" + target, 0, -1, function (err, reply) {
                         if (err) {
