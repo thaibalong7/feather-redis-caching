@@ -74,6 +74,25 @@ function cacheKey(hook) {
     }
     return path;
 }
+function setKeyRedis(client, options, _a) {
+    var path = _a.path, cache = _a.cache, expiresOn = _a.expiresOn, group = _a.group, duration = _a.duration;
+    return __awaiter(this, void 0, void 0, function () {
+        return __generator(this, function (_b) {
+            client.set(path, JSON.stringify({
+                cache: cache,
+                expiresOn: expiresOn,
+                group: group,
+            }));
+            client.expire(path, duration);
+            client.rpush(group, path);
+            if (options.env !== 'test' && ENABLE_REDIS_CACHE_LOGGER === 'true') {
+                console.log(chalk_1.default.cyan('[redis]') + " added " + chalk_1.default.green(path) + " to the cache.");
+                console.log("> Expires in " + moment_1.default.duration(duration, 'seconds').humanize() + ".");
+            }
+            return [2];
+        });
+    });
+}
 exports.default = {
     before: function (passedOptions) {
         if (DISABLE_REDIS_CACHE) {
@@ -147,17 +166,13 @@ exports.default = {
                     if (!client) {
                         return resolve(hook);
                     }
-                    client.set(path, JSON.stringify({
+                    setKeyRedis(client, options, {
+                        path: path,
                         cache: hook.result,
                         expiresOn: moment_1.default().add(moment_1.default.duration(duration, 'seconds')),
                         group: group,
-                    }));
-                    client.expire(path, duration);
-                    client.rpush(group, path);
-                    if (options.env !== 'test' && ENABLE_REDIS_CACHE_LOGGER === 'true') {
-                        console.log(chalk_1.default.cyan('[redis]') + " added " + chalk_1.default.green(path) + " to the cache.");
-                        console.log("> Expires in " + moment_1.default.duration(duration, 'seconds').humanize() + ".");
-                    }
+                        duration: duration
+                    });
                     resolve(hook);
                 });
             }

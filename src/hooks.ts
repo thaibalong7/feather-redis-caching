@@ -30,6 +30,21 @@ function cacheKey(hook) {
   return path;
 }
 
+async function setKeyRedis(client, options, { path, cache, expiresOn, group, duration }) {
+  client.set(path, JSON.stringify({
+    cache,
+    expiresOn,
+    group,
+  }));
+  client.expire(path, duration);
+  client.rpush(group, path);
+
+  if (options.env !== 'test' && ENABLE_REDIS_CACHE_LOGGER === 'true') {
+    console.log(`${chalk.cyan('[redis]')} added ${chalk.green(path)} to the cache.`);
+    console.log(`> Expires in ${moment.duration(duration, 'seconds').humanize()}.`);
+  }
+}
+
 export default {
   before(passedOptions) {
     if (DISABLE_REDIS_CACHE) {
@@ -42,7 +57,7 @@ export default {
           return Promise.resolve(hook);
         }
 
-        return new Promise(resolve => { 
+        return new Promise(resolve => {
           const options = { ...defaults, ...passedOptions };
           const redisClient = options.redisClient || DEFAULT_REDIS_CLIENT;
           const client = hook.app.get(redisClient);
@@ -111,7 +126,7 @@ export default {
 
         return new Promise((resolve) => {
           const options = { ...defaults, ...passedOptions };
-          
+
           const redisClient = options.redisClient || DEFAULT_REDIS_CLIENT;
           const client = hook.app.get(redisClient);
 
@@ -123,18 +138,13 @@ export default {
             return resolve(hook);
           }
 
-          client.set(path, JSON.stringify({
+          setKeyRedis(client, options, {
+            path,
             cache: hook.result,
             expiresOn: moment().add(moment.duration(duration, 'seconds')),
             group,
-          }));
-          client.expire(path, duration);
-          client.rpush(group, path);
-
-          if (options.env !== 'test' && ENABLE_REDIS_CACHE_LOGGER === 'true') {
-            console.log(`${chalk.cyan('[redis]')} added ${chalk.green(path)} to the cache.`);
-            console.log(`> Expires in ${moment.duration(duration, 'seconds').humanize()}.`);
-          }
+            duration
+          })
 
           resolve(hook);
         });
@@ -160,7 +170,7 @@ export default {
         }
 
         return new Promise((resolve) => {
-          const redisClient = passedOptions.redisClient || DEFAULT_REDIS_CLIENT;          
+          const redisClient = passedOptions.redisClient || DEFAULT_REDIS_CLIENT;
           const client = hook.app.get(redisClient);
           const target = hook.path;
 
