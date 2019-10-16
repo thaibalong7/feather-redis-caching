@@ -13,7 +13,7 @@ export default (options: any = {}) => {
   const redisConfig = options.redisConfig || DEFAULT_REDIS_CONFIG;
 
   if (DISABLE_REDIS_CACHE) {
-    return () => {};
+    return () => { };
   }
 
   return function client() {
@@ -27,20 +27,24 @@ export default (options: any = {}) => {
         retry_strategy: () => {
           app.set(redisClient, undefined);
 
-          console.log(`${chalk.yellow('[redis]')} not connected`);
+          console.log(`${chalk.yellow('[redis]')} not connected '${redisClient}'`);
 
           return retryInterval;
         }
       };
       const client = redis.createClient(redisOptions);
 
-      app.set(redisClient, client);
-
       client.on('ready', () => {
         app.set(redisClient, client);
 
-        console.log(`${chalk.green('[redis]')} connected`);
+        console.log(`${chalk.green('[redis]')} connected '${redisClient}'`);
       });
+
+      client.on('error', () => {
+        app.set(redisClient, undefined);
+        console.log(`${chalk.red('[redis]')} connect error '${redisClient}'`);
+      });
+
     } catch (err) {
       errorLogger(err);
       app.set(redisClient, undefined);

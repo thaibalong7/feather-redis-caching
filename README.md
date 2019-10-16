@@ -1,21 +1,22 @@
-[![License](https://img.shields.io/npm/l/feathers-redis-cache.svg)](https://www.npmjs.com/package/feathers-redis-cache)
+[![License](https://img.shields.io/npm/l/feathers-redis-cache.svg)](https://www.npmjs.com/package/feathers-redis-caching)
 <!-- [![NPM](https://img.shields.io/npm/v/feathers-redis-cache.svg)](https://www.npmjs.com/package/feathers-redis-cache) -->
 ..
 ##### This repository is a fork of [feathers-redis-cache](https://github.com/sarkistlt/feathers-redis-cache), with the following changes:
 - allow configure multi redis server by the way customize params of each function.
+- limit time to request to server Redis in hooks. If request timeout, skip the hook and go to the service.
 - option to pass custom `redisClient` in configure service Cache clean, to customize name of key of redis client for use.
 - option to pass custom `redisClient` in configure Redis Client, that name of key of redis client.
 - option to pass custom `redisConfig` in configure Redis Client, thay key of config Redis server.
 - option to pass custom `redisClient` in every hook, to specify redis client name to save cache.
 
-<!-- ### Installation
+### Installation
 
-```
+<!-- ```
   yarn add feathers-redis-cache
-```    
-```
-  npm install feathers-redis-cache
 ```     -->
+```
+  npm install feathers-redis-caching
+```    
 
 ## Purpose
 The purpose of these hooks is to provide redis caching for APIs endpoints. Using redis is a very good option for clustering your API. As soon as a request is cached it is available to all the other nodes in the cluster, which is not true for usual in memory cache as each node has its own memory allocated. This means that each node has to cache all requests individually.
@@ -24,7 +25,7 @@ Each request to an endpoint can be cached. Route variables and params are cached
 
 The cache can be purged for an individual route, but also for a group of routes. This is very useful if you have an API endpoint that creates a list of articles, and an endpoint that returns an individual article. If the article is modified, the list of articles should, most likely, be purged as well. This can be done by calling one endpoint.
 
-### Routes exemples
+### Routes examples
 In the same fashion if you have many variants of the same endpoint that return similar content based on parameters you can bust the whole group as well:
 
 ```js
@@ -79,6 +80,9 @@ More details and example use bellow
 
 ##### redisClient: `string`
 Name of redis client that want to save cache. The default is `redisClient`. When hook is running, it find redis client that configure when with name is `redisClient` and save cache.
+
+##### redisConfig: `string`
+The default is `default`. Use info in `app.get(redisConfig)` to create redisClient.
 
 ##### cacheKey(context: `feathers-context`): `string`
 In case if you want to use custom function to modify key name, you need to pass the same function in before and after hooks.

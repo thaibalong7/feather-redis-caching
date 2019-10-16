@@ -4,14 +4,17 @@ import chalk from 'chalk';
 import qs from 'qs';
 import async from 'async';
 
+import timeLimited from './time-limited';
+
 const { DISABLE_REDIS_CACHE, ENABLE_REDIS_CACHE_LOGGER } = process.env;
 const HTTP_OK = 200;
 const HTTP_NO_CONTENT = 204;
-const HTTP_SERVER_ERROR = 500;
+// const HTTP_SERVER_ERROR = 500;
 const defaults = {
   defaultExpiration: 3600 * 24
 };
 const DEFAULT_REDIS_CLIENT = 'redisClient';
+const GET_SERVER_REDIS_LIMIT_TIME = 1000;
 
 
 function cacheKey(hook) {
@@ -30,6 +33,27 @@ function cacheKey(hook) {
   return path;
 }
 
+function default_cb_fnc(err, res) { };
+
+async function setKeyRedis(client, options, { path, cache, expiresOn, group, duration }) {
+  const shortSet = timeLimited(client, 'set', GET_SERVER_REDIS_LIMIT_TIME);
+  const shortExpire = timeLimited(client, 'expire', GET_SERVER_REDIS_LIMIT_TIME);
+  const shortRpush = timeLimited(client, 'rpush', GET_SERVER_REDIS_LIMIT_TIME);
+
+  shortSet(path, JSON.stringify({
+    cache,
+    expiresOn,
+    group,
+  }), default_cb_fnc);
+  shortExpire(path, duration, default_cb_fnc);
+  shortRpush(group, path, default_cb_fnc);
+
+  if (options.env !== 'test' && ENABLE_REDIS_CACHE_LOGGER === 'true') {
+    console.log(`${chalk.cyan('[redis]')} added ${chalk.green(path)} to the cache.`);
+    console.log(`> Expires in ${moment.duration(duration, 'seconds').humanize()}.`);
+  }
+}
+
 export default {
   before(passedOptions) {
     if (DISABLE_REDIS_CACHE) {
@@ -42,7 +66,7 @@ export default {
           return Promise.resolve(hook);
         }
 
-        return new Promise(resolve => { 
+        return new Promise(resolve => {
           const options = { ...defaults, ...passedOptions };
           const redisClient = options.redisClient || DEFAULT_REDIS_CLIENT;
           const client = hook.app.get(redisClient);
@@ -56,7 +80,10 @@ export default {
 
           hook.params.cacheKey = path;
 
-          client.get(path, (err, reply) => {
+          // Limit time to call server Redis
+          const shortGet = timeLimited(client, 'get', GET_SERVER_REDIS_LIMIT_TIME);
+
+          shortGet(path, (err, reply) => {
             if (err) {
               return resolve(hook);
             }
@@ -111,7 +138,7 @@ export default {
 
         return new Promise((resolve) => {
           const options = { ...defaults, ...passedOptions };
-          
+
           const redisClient = options.redisClient || DEFAULT_REDIS_CLIENT;
           const client = hook.app.get(redisClient);
 
@@ -123,18 +150,13 @@ export default {
             return resolve(hook);
           }
 
-          client.set(path, JSON.stringify({
+          setKeyRedis(client, options, {
+            path,
             cache: hook.result,
             expiresOn: moment().add(moment.duration(duration, 'seconds')),
             group,
-          }));
-          client.expire(path, duration);
-          client.rpush(group, path);
-
-          if (options.env !== 'test' && ENABLE_REDIS_CACHE_LOGGER === 'true') {
-            console.log(`${chalk.cyan('[redis]')} added ${chalk.green(path)} to the cache.`);
-            console.log(`> Expires in ${moment.duration(duration, 'seconds').humanize()}.`);
-          }
+            duration
+          })
 
           resolve(hook);
         });
@@ -160,18 +182,23 @@ export default {
         }
 
         return new Promise((resolve) => {
-          const redisClient = passedOptions.redisClient || DEFAULT_REDIS_CLIENT;          
+          const redisClient = passedOptions.redisClient || DEFAULT_REDIS_CLIENT;
           const client = hook.app.get(redisClient);
           const target = hook.path;
 
           if (!client) {
-            return {
-              message: 'Redis unavailable',
-              status: HTTP_SERVER_ERROR
-            };
+            // return {
+            //   message: 'Redis unavailable',
+            //   status: HTTP_SERVER_ERROR
+            // };
+            return resolve(hook);
           }
 
-          client.lrange(`group-${target}`, 0, -1, (err, reply) => {
+          // Limit time to call server Redis
+          const shortLrange = timeLimited(client, 'lrange', GET_SERVER_REDIS_LIMIT_TIME);
+          const shortDel = timeLimited(client, 'del', GET_SERVER_REDIS_LIMIT_TIME);
+
+          shortLrange(`group-${target}`, 0, -1, (err, reply) => {
             if (err) {
               return resolve(hook);
             }
@@ -182,7 +209,7 @@ export default {
 
             async.eachOfLimit(reply, 10, async.asyncify(async (key) => {
               return new Promise((res) => {
-                client.del(key, (err, reply) => {
+                shortDel(key, (err, reply) => {
                   if (err) {
                     return res({ message: 'something went wrong' + err.message });
                   }

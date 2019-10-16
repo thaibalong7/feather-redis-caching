@@ -35,14 +35,17 @@ exports.default = (function (options) {
         try {
             var redisOptions = __assign(__assign({}, configRedis), { retry_strategy: function () {
                     app.set(redisClient, undefined);
-                    console.log(chalk_1.default.yellow('[redis]') + " not connected");
+                    console.log(chalk_1.default.yellow('[redis]') + " not connected '" + redisClient + "'");
                     return retryInterval;
                 } });
             var client_1 = redis_1.default.createClient(redisOptions);
-            app.set(redisClient, client_1);
             client_1.on('ready', function () {
                 app.set(redisClient, client_1);
-                console.log(chalk_1.default.green('[redis]') + " connected");
+                console.log(chalk_1.default.green('[redis]') + " connected '" + redisClient + "'");
+            });
+            client_1.on('error', function () {
+                app.set(redisClient, undefined);
+                console.log(chalk_1.default.red('[redis]') + " connect error '" + redisClient + "'");
             });
         }
         catch (err) {
