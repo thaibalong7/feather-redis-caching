@@ -2,7 +2,6 @@
   "name": "feathers-redis-caching",
   "description": "Redis cache for feathers service",
   "version": "1.0.2",
-  "homepage": "git://github.com/thaibalong7/feather-redis-caching",
   "main": "build/index.js",
   "keywords": [
     "feathers",
