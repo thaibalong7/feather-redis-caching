@@ -81,6 +81,9 @@ More details and example use bellow
 ##### redisClient: `string`
 Name of redis client that want to save cache. The default is `redisClient`. When hook is running, it find redis client that configure when with name is `redisClient` and save cache.
 
+##### redisConfig: `string`
+The default is `default`. Use info in `app.get(redisConfig)` to create redisClient.
+
 ##### cacheKey(context: `feathers-context`): `string`
 In case if you want to use custom function to modify key name, you need to pass the same function in before and after hooks.
 
