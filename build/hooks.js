@@ -54,14 +54,15 @@ var moment_1 = __importDefault(require("moment/moment"));
 var chalk_1 = __importDefault(require("chalk"));
 var qs_1 = __importDefault(require("qs"));
 var async_1 = __importDefault(require("async"));
+var time_limited_1 = __importDefault(require("./time-limited"));
 var _a = process.env, DISABLE_REDIS_CACHE = _a.DISABLE_REDIS_CACHE, ENABLE_REDIS_CACHE_LOGGER = _a.ENABLE_REDIS_CACHE_LOGGER;
 var HTTP_OK = 200;
 var HTTP_NO_CONTENT = 204;
-var HTTP_SERVER_ERROR = 500;
 var defaults = {
     defaultExpiration: 3600 * 24
 };
 var DEFAULT_REDIS_CLIENT = 'redisClient';
+var GET_SERVER_REDIS_LIMIT_TIME = 1000;
 function cacheKey(hook) {
     var q = hook.params.query || {};
     var p = hook.params.paginate === false ? 'disabled' : 'enabled';
@@ -74,17 +75,23 @@ function cacheKey(hook) {
     }
     return path;
 }
+function default_cb_fnc(err, res) { }
+;
 function setKeyRedis(client, options, _a) {
     var path = _a.path, cache = _a.cache, expiresOn = _a.expiresOn, group = _a.group, duration = _a.duration;
     return __awaiter(this, void 0, void 0, function () {
+        var shortSet, shortExpire, shortRpush;
         return __generator(this, function (_b) {
-            client.set(path, JSON.stringify({
+            shortSet = time_limited_1.default(client, 'set', GET_SERVER_REDIS_LIMIT_TIME);
+            shortExpire = time_limited_1.default(client, 'expire', GET_SERVER_REDIS_LIMIT_TIME);
+            shortRpush = time_limited_1.default(client, 'rpush', GET_SERVER_REDIS_LIMIT_TIME);
+            shortSet(path, JSON.stringify({
                 cache: cache,
                 expiresOn: expiresOn,
                 group: group,
-            }));
-            client.expire(path, duration);
-            client.rpush(group, path);
+            }), default_cb_fnc);
+            shortExpire(path, duration, default_cb_fnc);
+            shortRpush(group, path, default_cb_fnc);
             if (options.env !== 'test' && ENABLE_REDIS_CACHE_LOGGER === 'true') {
                 console.log(chalk_1.default.cyan('[redis]') + " added " + chalk_1.default.green(path) + " to the cache.");
                 console.log("> Expires in " + moment_1.default.duration(duration, 'seconds').humanize() + ".");
@@ -114,7 +121,8 @@ exports.default = {
                         options.cacheKey(hook) :
                         cacheKey(hook);
                     hook.params.cacheKey = path;
-                    client.get(path, function (err, reply) {
+                    var shortGet = time_limited_1.default(client, 'get', GET_SERVER_REDIS_LIMIT_TIME);
+                    shortGet(path, function (err, reply) {
                         if (err) {
                             return resolve(hook);
                         }
@@ -201,7 +209,9 @@ exports.default = {
                     if (!client) {
                         return resolve(hook);
                     }
-                    client.lrange("group-" + target, 0, -1, function (err, reply) {
+                    var shortLrange = time_limited_1.default(client, 'lrange', GET_SERVER_REDIS_LIMIT_TIME);
+                    var shortDel = time_limited_1.default(client, 'del', GET_SERVER_REDIS_LIMIT_TIME);
+                    shortLrange("group-" + target, 0, -1, function (err, reply) {
                         if (err) {
                             return resolve(hook);
                         }
@@ -211,7 +221,7 @@ exports.default = {
                         async_1.default.eachOfLimit(reply, 10, async_1.default.asyncify(function (key) { return __awaiter(_this, void 0, void 0, function () {
                             return __generator(this, function (_a) {
                                 return [2, new Promise(function (res) {
-                                        client.del(key, function (err, reply) {
+                                        shortDel(key, function (err, reply) {
                                             if (err) {
                                                 return res({ message: 'something went wrong' + err.message });
                                             }
